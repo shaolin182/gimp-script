@@ -1,8 +1,22 @@
-;; Transforme le calque sélectionné pour être inclus dans un format de carte postale
-;; Le calque respecte la résolution de l'image et est redimensionné au besoin pour correspondre au format carte postale
+;; Resize a layer to match dimension passing in parameter 
+;; according to the image resolution
+;; Also add a frame with a shadow to that layer
+;;
+;; Default behavior use a postal card format 
+;;
+;; Layer are not cropped if it does not fit parameters values
+;;
+;; @param : 
+;; - height : height of the layer in inch, default 3.71 inch
+;; - width : width of the layer in inch, default 5.94 inch
+;; - frameBorderInInch : border thickness
+;;
+;; TODO : Add parameters for targeted resolutions
+;; TODO : Run that script in mass
+;; TODO : Reduce size image
 (define (script-fu-cadre image drawable heigth width frameBorderInInch)
 	
-	;; début du script. Permet de ne faire qu'une seule fois "Undo" pour toutes les manips
+	;; Indicate beginning of actions. Used for UNDO actions 
 	(gimp-image-undo-group-start image)
 
 	(let* 
@@ -11,22 +25,23 @@
 			(frameWidthInInch width)
 			;;(frameBorderInInch 0.2)
 
+			;; Get image sizing values
 			(widthImageInPixel (car (gimp-image-width image)))
 			(heigthImageInPixel (car (gimp-image-height image)))
 
-			;; Crée un calque pour le contour du cadre et l'ombre
+			;; Create a frame layer and a shadow layer using image size
 			(frameLayer (script-fu-add-transparent-layer image widthImageInPixel heigthImageInPixel "Frame"))
 			(layerShadow (script-fu-add-transparent-layer image widthImageInPixel heigthImageInPixel "Shadow"))
 
-			;; Récupération de la résolution de l'image, on part du principe que la résolution est la meme pour x et y
+			;; Get image resolution
 			(resolution (car (gimp-image-get-resolution image)))
 
-			;; Calcul les dimensions du cadre
+			;; Compute Frame sizes
 			(widthFrameInPixel (round (* resolution frameWidthInInch)))
 			(heigthFrameInPixel (round (* resolution frameHeightInInch)))
 			(frameBorderInPixel (round (* resolution frameBorderInInch)))
 
-			;; Position du cadre
+			;; Compute frame coordinates 
 			(x (- (/ widthImageInPixel 2) (/ widthFrameInPixel 2)))
 			(y (- (/ heigthImageInPixel 2) (/ heigthFrameInPixel 2)))
 
@@ -38,9 +53,11 @@
 
 			(layerOffsets 0)
 
+			;; Get layer sizing values
 			(heightLayer (car (gimp-drawable-height drawable)))
 			(widthLayer (car (gimp-drawable-width drawable)))
 
+			;; Determine if image is in vertical or horizontal mode
 			(rapportLayer (/ heightLayer widthLayer))
 
 			(heightFrameWithoutBorder (- heigthFrameInPixel (* frameBorderInPixel 2)))
@@ -52,7 +69,7 @@
 		;; Affiche le nom du calque sélectionné
 		;;(gimp-message (car (gimp-item-get-name drawable)))
 
-		;; Crée les marges du cadre
+		;; Build frame margin
 		(script-fu-build-margin image frameLayer x y widthFrameInPixel frameBorderInPixel);;Top
 		(script-fu-build-margin image frameLayer x (- (+ y heigthFrameInPixel) frameBorderInPixel) widthFrameInPixel frameBorderInPixel);;Bottom
 		(script-fu-build-margin image frameLayer x y frameBorderInPixel heigthFrameInPixel);;Left
@@ -63,17 +80,15 @@
 		(gimp-image-select-rectangle image CHANNEL-OP-REPLACE x y widthFrameInPixel heigthFrameInPixel)  
 		(gimp-edit-fill layerShadow FOREGROUND-FILL)
 
-		;; Get drawable
+		;; Add shadow
 		(script-fu-drop-shadow image layerShadow 0 0 60 black 75 0)
 		(gimp-image-remove-layer image layerShadow)
 
 		;; Fusionne les calques 
 		(gimp-image-merge-down image (car (gimp-image-get-layer-by-name image "Drop Shadow")) 1)
 
-		;; redimensionne le calque pour rentrer dans le cadre
-		;; Récupération de la largeur et hauteur de la photo en pixel en fonction du rapport attendu
+		;; Resize Layer into the frame
 		(script-fu-resize-layer drawable (- widthFrameInPixel (* 2 frameBorderInPixel)) (- heigthFrameInPixel (* 2 frameBorderInPixel))) 
-
 
 		(if (> rapportCadre rapportLayer)
 			(begin 

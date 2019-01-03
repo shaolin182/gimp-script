@@ -1,4 +1,4 @@
-;; Construit une marge
+;; Build a white rectangle use for a frame
 ;;
 ;; x : Position horizontale où démarre la marge
 ;; y : Position verticale où démarre la marge
